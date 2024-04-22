@@ -20,4 +20,6 @@ if __name__ == "__main__":
     if not engine.rootObjects():
         sys.exit(-1)
 
+    app.aboutToQuit.connect(backend.cleanup)
+
     sys.exit(app.exec())

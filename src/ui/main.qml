@@ -38,7 +38,7 @@ ApplicationWindow {
 
     SineWavePlot {
         id: plot
-        frequencies: backend.active_frequencies
+        notes: backend.active_notes
         anchors {
             bottom: quick_settings_bar.top
             top: parent.top

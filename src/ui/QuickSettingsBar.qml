@@ -12,11 +12,11 @@ Rectangle {
 
         SettingsSwitch {
             text: "Hold"
-            checked: backend.settings.hold
+            checked: backend.hold
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignVCenter
             onClicked: {
-                backend.settings.toggle_hold()
+                backend.toggle_hold()
             }
         }
     }
