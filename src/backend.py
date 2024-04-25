@@ -20,6 +20,9 @@ class Backend(QObject):
         self._stop_processing = False
         self._intensity_processing_thread = None
 
+    def __del__(self):
+        self.cleanup()
+
     def cleanup(self):
         if self._intensity_processing_thread is not None:
             self._stop_processing = True
@@ -37,7 +40,7 @@ class Backend(QObject):
             intensity >= 0.0 and intensity <= 1.0
         ), "Intensity must be between 0 and 1"
         with self._active_keys_lock:
-            if key not in self._active_keys:
+            if key not in self._active_keys or not self._hold:
                 self._active_keys[key] = {
                     "intensity": intensity,
                     "frequency": self._keyboard.get_frequency(key),
@@ -119,3 +122,8 @@ class Backend(QObject):
     @Property(QObject, notify=settings_changed)
     def settings(self):
         return self._settings
+
+    @Slot(int)
+    def computer_keypress(self, key: int):
+        if key in self._settings.key_map:
+            self.submit_keypress(self._settings.key_map[key])

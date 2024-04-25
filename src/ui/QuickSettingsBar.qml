@@ -12,6 +12,7 @@ Rectangle {
 
         SettingsSwitch {
             text: "Hold"
+            focusPolicy: Qt.NoFocus
             checked: backend.hold
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignVCenter

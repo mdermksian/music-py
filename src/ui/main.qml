@@ -46,4 +46,11 @@ ApplicationWindow {
             right: parent.right
         }
     }
+
+    Item {
+        focus: true
+        Keys.onPressed: (event) => {
+            backend.computer_keypress(event.key)
+        }
+    }
 }
