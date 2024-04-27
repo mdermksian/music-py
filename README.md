@@ -6,5 +6,6 @@
 - [ ] Play sounds
 - [ ] Overtone series
 - [ ] Quick Settings
-    - [ ] Toggle hold vs transient
+    - [x] Toggle hold vs transient
     - [ ] Change duration of transient
+    - [ ] Remap keyboard

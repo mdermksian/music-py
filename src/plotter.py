@@ -1,4 +1,4 @@
-from PySide6.QtCore import QPointF, Signal, Property
+from PySide6.QtCore import Qt, QPointF, Signal, Property
 from PySide6.QtGui import QPainter, QPen
 from PySide6.QtQuick import QQuickPaintedItem
 
@@ -42,24 +42,22 @@ class SineWavePlot(QQuickPaintedItem):
         if len(self._notes) == 0:
             return
 
-        freqs = [note["frequency"] for note in self._notes]
-        intens = [note["intensity"] for note in self._notes]
+        freqs = np.array([note["frequency"] for note in self._notes])
+        intens = np.array([note["intensity"] for note in self._notes])
 
         # Always plot 8 periods of slowest frequency
         x_scale = 30 / min(freqs) / self.width()  # seconds / pixel
         y_scale = self.height() / 2 / len(self._notes)
 
         pen = QPen("#41FF00")
-        pen.setWidth(3)
+        pen.setWidth(2)
         painter.setPen(pen)
 
-        points = []
-        for x in range(0, int(self.width()), 1):
-            t = x * x_scale
-            y = 0
-            for i in range(len(freqs)):
-                y = intens[i] * (y + np.sin(2 * np.pi * freqs[i] * t))
-            y = y * y_scale + self.height() / 2
-            points.append(QPointF(x, y))
+        x = np.arange(0, self.width())
+        t = (x * x_scale).reshape(-1, 1)
+        sinusoids = np.sin(2 * np.pi * freqs * t) * intens
+        y = np.sum(sinusoids, axis=1) * y_scale + self.height() / 2
+        pts = np.vstack((x, y)).T
+        qpts = [QPointF(pt[0], pt[1]) for pt in pts]
 
-        painter.drawPolyline(points)
+        painter.drawPolyline(qpts)

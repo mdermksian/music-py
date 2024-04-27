@@ -3,10 +3,41 @@ from keyboard_model import QKeyboard
 from settings import Settings
 
 from threading import Thread, Lock
+from typing import Callable, Union
 import time
+from functools import partial
+
+import sounddevice
+
 
 UPDATE_RATE = 1 / 30  # s
 HOLD_DURATION = 2.0  # s
+
+
+class TickThread:
+    def __init__(self, loop_rate: float = UPDATE_RATE):
+        self._stop_processing: bool = False
+        self._thread: Union[None, Thread] = None
+        self._update_rate: float = loop_rate
+
+    def stop(self):
+        self._stop_processing = True
+        if self._thread is not None:
+            self._thread.join()
+            self._thread = None
+
+    def start(self, process: Callable):
+        self._stop_processing = False
+        self._thread = Thread(target=partial(self.__tick, process))
+        self._thread.start()
+
+    def __tick(self, process: Callable) -> Callable:
+        while not self._stop_processing:
+            start_time = time.time()
+            process()
+            elapsed_time = time.time() - start_time
+            time_to_sleep = self._update_rate - elapsed_time
+            time.sleep(time_to_sleep if time_to_sleep > 0 else 0)
 
 
 class Backend(QObject):
@@ -17,16 +48,14 @@ class Backend(QObject):
         self._active_keys_lock = Lock()
         self._active_keys = {}
         self._hold = True
-        self._stop_processing = False
-        self._intensity_processing_thread = None
+        self._intensity_processing = TickThread()
+        self._sound_playing = TickThread()
 
     def __del__(self):
         self.cleanup()
 
     def cleanup(self):
-        if self._intensity_processing_thread is not None:
-            self._stop_processing = True
-            self._intensity_processing_thread.join()
+        self._intensity_processing.stop()
 
     keyboard_changed = Signal()
 
@@ -77,38 +106,27 @@ class Backend(QObject):
         self._hold = not self._hold
         if not self._hold:
             self._stop_processing = False
-            self._intensity_processing_thread = Thread(
-                target=self.intensity_processing_process
-            )
-            self._intensity_processing_thread.start()
+            self._intensity_processing.start(self.intensity_processing_process)
         else:
-            self._stop_processing = True
-            self._intensity_processing_thread.join()
-            self._intensity_processing_thread = None
+            self._intensity_processing.stop()
 
         self.hold_changed.emit()
 
     def intensity_processing_process(self):
-        print("Starting process")
-        while not self._stop_processing:
-            start_time = time.time()
-            with self._active_keys_lock:
-                keys_to_remove = []
-                for key in self._active_keys.keys():
-                    key_data = self._active_keys[key]
-                    elapsed_time = start_time - key_data["press_time"]
-                    self._active_keys[key]["intensity"] = self.linear_decay(
-                        key_data["intensity_initial"], elapsed_time
-                    )
-                    if self._active_keys[key]["intensity"] <= 0:
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    del self._active_keys[key]
-            self.active_keys_changed.emit()
-            elapsed_time = time.time() - start_time
-            time_to_sleep = UPDATE_RATE - elapsed_time
-            time.sleep(time_to_sleep if time_to_sleep > 0 else 0)
-        print("Ending process")
+        start_time = time.time()
+        with self._active_keys_lock:
+            keys_to_remove = []
+            for key in self._active_keys.keys():
+                key_data = self._active_keys[key]
+                elapsed_time = start_time - key_data["press_time"]
+                self._active_keys[key]["intensity"] = self.linear_decay(
+                    key_data["intensity_initial"], elapsed_time
+                )
+                if self._active_keys[key]["intensity"] <= 0:
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del self._active_keys[key]
+        self.active_keys_changed.emit()
 
     @staticmethod
     def linear_decay(
@@ -127,3 +145,23 @@ class Backend(QObject):
     def computer_keypress(self, key: int):
         if key in self._settings.key_map:
             self.submit_keypress(self._settings.key_map[key])
+
+    def play_sounds_process(self):
+        while not self._stop_processing:
+            start_time = time.time()
+            with self._active_keys_lock:
+                keys_to_remove = []
+                for key in self._active_keys.keys():
+                    key_data = self._active_keys[key]
+                    elapsed_time = start_time - key_data["press_time"]
+                    self._active_keys[key]["intensity"] = self.linear_decay(
+                        key_data["intensity_initial"], elapsed_time
+                    )
+                    if self._active_keys[key]["intensity"] <= 0:
+                        keys_to_remove.append(key)
+                for key in keys_to_remove:
+                    del self._active_keys[key]
+            self.active_keys_changed.emit()
+            elapsed_time = time.time() - start_time
+            time_to_sleep = UPDATE_RATE - elapsed_time
+            time.sleep(time_to_sleep if time_to_sleep > 0 else 0)
