@@ -7,6 +7,8 @@ from backend import Backend
 from plotter import SineWavePlot
 
 if __name__ == "__main__":
+    os.environ["QSG_INFO"] = "1"
+
     qmlRegisterType(SineWavePlot, "Plotting", 1, 0, "SineWavePlot")
     app = QGuiApplication(sys.argv)
 

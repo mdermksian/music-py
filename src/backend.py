@@ -6,9 +6,9 @@ from threading import Thread, Lock
 from typing import Callable, Union
 import time
 from functools import partial
+import numpy as np
 
-import sounddevice
-
+from sounds import SoundData, SoundGenerator
 
 UPDATE_RATE = 1 / 30  # s
 HOLD_DURATION = 2.0  # s
@@ -49,13 +49,27 @@ class Backend(QObject):
         self._active_keys = {}
         self._hold = True
         self._intensity_processing = TickThread()
-        self._sound_playing = TickThread()
+        self._sound_generator = SoundGenerator(self.get_sounddata)
+        self._sound_generator.start()
 
     def __del__(self):
         self.cleanup()
 
     def cleanup(self):
         self._intensity_processing.stop()
+        self._sound_generator.stop()
+
+    def get_sounddata(self) -> SoundData:
+        with self._active_keys_lock:
+            return {
+                "frequencies": [
+                    value["frequency"] for value in self._active_keys.values()
+                ],
+                "intensities": [
+                    value["intensity"] for value in self._active_keys.values()
+                ],
+                "phases": [value["phase"] for value in self._active_keys.values()],
+            }
 
     keyboard_changed = Signal()
 
@@ -64,7 +78,7 @@ class Backend(QObject):
         return self._keyboard
 
     @Slot(str)
-    def submit_keypress(self, key: str, intensity: float = 1.0):
+    def submit_keypress(self, key: str, intensity: float = 0.5):
         assert (
             intensity >= 0.0 and intensity <= 1.0
         ), "Intensity must be between 0 and 1"
@@ -75,6 +89,7 @@ class Backend(QObject):
                     "frequency": self._keyboard.get_frequency(key),
                     "intensity_initial": intensity,
                     "press_time": time.time(),
+                    "phase": 0,  # np.random.rand() * np.pi,
                 }
             else:
                 del self._active_keys[key]
@@ -91,7 +106,11 @@ class Backend(QObject):
     def active_notes(self):
         with self._active_keys_lock:
             return [
-                {"frequency": key["frequency"], "intensity": key["intensity"]}
+                {
+                    "frequency": key["frequency"],
+                    "intensity": key["intensity"],
+                    "phase": key["phase"],
+                }
                 for key in self._active_keys.values()
             ]
 
@@ -126,11 +145,12 @@ class Backend(QObject):
                     keys_to_remove.append(key)
             for key in keys_to_remove:
                 del self._active_keys[key]
+
         self.active_keys_changed.emit()
 
     @staticmethod
     def linear_decay(
-        value_init: float, elapsed_time_s: int, slope: float = 0.5
+        value_init: float, elapsed_time_s: int, slope: float = 0.25
     ) -> float:
         value = value_init - elapsed_time_s * slope
         return value if value > 0 else 0
@@ -145,23 +165,3 @@ class Backend(QObject):
     def computer_keypress(self, key: int):
         if key in self._settings.key_map:
             self.submit_keypress(self._settings.key_map[key])
-
-    def play_sounds_process(self):
-        while not self._stop_processing:
-            start_time = time.time()
-            with self._active_keys_lock:
-                keys_to_remove = []
-                for key in self._active_keys.keys():
-                    key_data = self._active_keys[key]
-                    elapsed_time = start_time - key_data["press_time"]
-                    self._active_keys[key]["intensity"] = self.linear_decay(
-                        key_data["intensity_initial"], elapsed_time
-                    )
-                    if self._active_keys[key]["intensity"] <= 0:
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    del self._active_keys[key]
-            self.active_keys_changed.emit()
-            elapsed_time = time.time() - start_time
-            time_to_sleep = UPDATE_RATE - elapsed_time
-            time.sleep(time_to_sleep if time_to_sleep > 0 else 0)

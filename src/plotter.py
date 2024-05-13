@@ -4,6 +4,8 @@ from PySide6.QtQuick import QQuickPaintedItem
 
 import numpy as np
 
+from music_math import sum_waves
+
 
 class SineWavePlot(QQuickPaintedItem):
     def __init__(self, parent=None):
@@ -44,6 +46,7 @@ class SineWavePlot(QQuickPaintedItem):
 
         freqs = np.array([note["frequency"] for note in self._notes])
         intens = np.array([note["intensity"] for note in self._notes])
+        phases = np.array([note["phase"] for note in self._notes])
 
         # Always plot 8 periods of slowest frequency
         x_scale = 30 / min(freqs) / self.width()  # seconds / pixel
@@ -54,9 +57,9 @@ class SineWavePlot(QQuickPaintedItem):
         painter.setPen(pen)
 
         x = np.arange(0, self.width())
-        t = (x * x_scale).reshape(-1, 1)
-        sinusoids = np.sin(2 * np.pi * freqs * t) * intens
-        y = np.sum(sinusoids, axis=1) * y_scale + self.height() / 2
+        t = x * x_scale
+        sin_sum = sum_waves(freqs, intens, phases, t)
+        y = sin_sum * y_scale + self.height() / 2
         pts = np.vstack((x, y)).T
         qpts = [QPointF(pt[0], pt[1]) for pt in pts]
 
