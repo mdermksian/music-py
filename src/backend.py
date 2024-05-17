@@ -6,7 +6,6 @@ from threading import Thread, Lock
 from typing import Callable, Union
 import time
 from functools import partial
-import numpy as np
 
 from sounds import SoundData, SoundGenerator
 
@@ -48,6 +47,7 @@ class Backend(QObject):
         self._active_keys_lock = Lock()
         self._active_keys = {}
         self._hold = True
+        self._adjustable_volume = False
         self._intensity_processing = TickThread()
         self._sound_generator = SoundGenerator(self.get_sounddata)
         self._sound_generator.start()
@@ -78,7 +78,8 @@ class Backend(QObject):
         return self._keyboard
 
     @Slot(str)
-    def submit_keypress(self, key: str, intensity: float = 0.5):
+    @Slot(str, float)
+    def submit_keypress(self, key: str, intensity: float = 1.0):
         assert (
             intensity >= 0.0 and intensity <= 1.0
         ), "Intensity must be between 0 and 1"
@@ -89,7 +90,7 @@ class Backend(QObject):
                     "frequency": self._keyboard.get_frequency(key),
                     "intensity_initial": intensity,
                     "press_time": time.time(),
-                    "phase": 0,  # np.random.rand() * np.pi,
+                    "phase": 0,
                 }
             else:
                 del self._active_keys[key]
@@ -131,6 +132,26 @@ class Backend(QObject):
 
         self.hold_changed.emit()
 
+    adjustable_volume_changed = Signal()
+
+    @Property(bool, notify=adjustable_volume_changed)
+    def adjustable_volume(self):
+        return self._adjustable_volume
+
+    @Slot()
+    def toggle_adjustable_volume(self):
+        self._adjustable_volume = not self._adjustable_volume
+        self.adjustable_volume_changed.emit()
+
+    @Slot(str, str, result=float)
+    def get_active_value(self, note: str, property: str):
+        with self._active_keys_lock:
+            if not note in self._active_keys:
+                return 0.0
+            note_data = self._active_keys[note]
+            assert property in note_data, "Invalid value"
+            return note_data[property]
+
     def intensity_processing_process(self):
         start_time = time.time()
         with self._active_keys_lock:
@@ -150,9 +171,9 @@ class Backend(QObject):
 
     @staticmethod
     def linear_decay(
-        value_init: float, elapsed_time_s: int, slope: float = 0.25
+        value_init: float, elapsed_time_s: int, note_duration: float = HOLD_DURATION
     ) -> float:
-        value = value_init - elapsed_time_s * slope
+        value = value_init * (note_duration - elapsed_time_s) / note_duration
         return value if value > 0 else 0
 
     settings_changed = Signal()

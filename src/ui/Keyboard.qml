@@ -5,6 +5,8 @@ Rectangle {
     height: 40
     color: "blue"
 
+    function clickHandler(mouse_event, key) {}
+
     ListModel {
         id: keyboard_keys_model
     }
@@ -15,17 +17,26 @@ Rectangle {
         anchors.fill: parent
         delegate: Rectangle {
             property bool active: false
-            color: backend.active_keys.includes(model.key) ? "blue" : model.color
+            color: model.color
             anchors.top: keyboard_view.top
             anchors.bottom: model.color == "white" ? keyboard_view.bottom : keyboard_view.verticalCenter
             width: model.color == "white" ? keyboard_view.width / 52 : keyboard_view.width / 80
             border.color: "black"
             border.width: 1
             z: model.color == "white" ? 1 : 2
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                anchors.left: parent.left
+                visible: backend && backend.active_keys.includes(model.key)
+                height: backend && backend.active_keys.includes(model.key) ? backend.get_active_value(model.key, "intensity") * parent.height : 0
+                color: "blue"
+            }
             MouseArea {
                 anchors.fill: parent
-                onClicked: {
-                    backend.submit_keypress(model.key)
+                onClicked: (mouse_event) => {
+                    var location = 1 - mouse_event.y / height
+                    keyboard_container.clickHandler(location, model.key)
                 }
             }
 

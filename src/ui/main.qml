@@ -24,6 +24,14 @@ ApplicationWindow {
             right: parent.right
         }
         height: width / 10
+
+        function clickHandler(location, key) {
+            if (backend.adjustable_volume) {
+                backend.submit_keypress(key, location)
+            } else {
+                backend.submit_keypress(key)
+            }
+        }
     }
 
     QuickSettingsBar {
