@@ -1,8 +1,8 @@
 import sounddevice as sd
 from typing import TypedDict, Iterable, Callable
 import numpy as np
-from music_math import sum_waves
 from scipy import signal
+from music_py.music_math import sum_waves
 
 DEFAULT_SAMPLE_RATE = 48000
 

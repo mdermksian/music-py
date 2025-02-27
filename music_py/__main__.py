@@ -3,10 +3,11 @@ import os
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
-from backend import Backend
-from plotter import SineWavePlot
+from music_py.backend import Backend
+from music_py.plotter import SineWavePlot
 
-if __name__ == "__main__":
+
+def main():
     os.environ["QSG_INFO"] = "1"
 
     qmlRegisterType(SineWavePlot, "Plotting", 1, 0, "SineWavePlot")
@@ -25,3 +26,7 @@ if __name__ == "__main__":
     app.aboutToQuit.connect(backend.cleanup)
 
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

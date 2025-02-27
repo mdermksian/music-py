@@ -4,7 +4,7 @@ from PySide6.QtQuick import QQuickPaintedItem
 
 import numpy as np
 
-from music_math import sum_waves
+from music_py.music_math import sum_waves
 
 
 class SineWavePlot(QQuickPaintedItem):

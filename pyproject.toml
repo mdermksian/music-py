@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "music-py"
+version = "0.0.0"
+description = "My package description"
+readme = "README.md"
+
+[project.scripts]
+music_py = "music_py.__main__:main"

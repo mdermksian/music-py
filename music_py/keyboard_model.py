@@ -1,4 +1,3 @@
-import typing
 from PySide6.QtCore import QObject, Property, Signal
 
 NOTES = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"]

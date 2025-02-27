@@ -1,13 +1,13 @@
 from PySide6.QtCore import QObject, Slot, Property, Signal
-from keyboard_model import QKeyboard
-from settings import Settings
 
 from threading import Thread, Lock
 from typing import Callable, Union
 import time
 from functools import partial
 
-from sounds import SoundData, SoundGenerator
+from music_py.keyboard_model import QKeyboard
+from music_py.settings import Settings
+from music_py.sounds import SoundData, SoundGenerator
 
 UPDATE_RATE = 1 / 30  # s
 HOLD_DURATION = 2.0  # s
